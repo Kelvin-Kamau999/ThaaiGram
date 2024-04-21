@@ -1,26 +1,29 @@
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Link} from 'react-router-dom'
-
+import { Link, useNavigate} from 'react-router-dom'
 import { useToast } from "@/components/ui/use-toast"
-
 import { Button } from "@/components/ui/button"
 import {  Form,  FormControl, FormField,  FormItem,  FormLabel,  FormMessage,} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
 import { SignupValidation } from "@/lib/validation"
 import Loader from "@/components/shared/Loader"
-import { useCreateUserAcccount } from "@/lib/react-query/queriesAndMutations"
+import { useCreateUserAcccount, useSignInAccount } from "@/lib/react-query/queriesAndMutations"
+import { useUserContext } from "@/context/AuthContext"
 
 
 
 
 const SignupForm = () => {
   const { toast } = useToast()
-  
+  const {checkAuthUser,isLoading: isUserLoading } = useUserContext();
+  const navigate = useNavigate();
 
-  const { mutateAsync: createUseraccount, isLoading: 
-    isCreatingAccount} = useCreateUserAcccount()
+  const { mutateAsync: createUseraccount, isPending: isCreatingAccount} //isCreatingAccount 
+  = useCreateUserAcccount()
+
+    const { mutateAsync: signInAccount, isLoading: isSigningIn } =
+    useSignInAccount
 
     // 1. Define your form.
     const form = useForm<z.infer<typeof SignupValidation>>({
@@ -44,8 +47,27 @@ const SignupForm = () => {
         })
       }
 
-      const session = await signInAccount()
+      const session = await signInAccount({
+        email: values.email,
+        password: values.password,
+      })
+
+      if(!session){
+        return toast({ title: 'Sign in failed. Please try again.'})
+      }
+
+      const isLoggedIn = await checkAuthUser();
+
+      if(isLoggedIn){
+        form.reset();
+
+        navigate('/')
+      }else{
+        return toast({ title: 'Sign in failed. Please try again.'})
+      }
     }
+
+
   return (
       <Form {...form}>
         <div className="sm:w-420 flex-center flex-col">
@@ -121,7 +143,7 @@ render={({ field }) => (
             
 
         <Button type="submit" className="shad-button_primary">
-          {isCreatingUser ?(
+          {isCreatingAccount ?(
             <div className="flex-center gap-2">
             <Loader/>  Loading...
             </div>
